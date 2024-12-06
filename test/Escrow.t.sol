@@ -98,6 +98,7 @@ contract EscrowTest is Test {
 
         // Test successful authorization by admin
         vm.prank(admin);
+        // vm.expectRevert("All buyers must deposit");
         escrow.authorizeTransaction();
 
         // Test cannot authorize twice
