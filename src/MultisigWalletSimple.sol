@@ -14,10 +14,10 @@ contract MultisigWalletSimple {
     mapping(address => bool) public approvals;
 
     address[] owners;
-    uint quorum;
+    uint public quorum;
     address admin;
     mapping(uint => Proposal) public proposals;
-    uint nextProposalId;
+    uint public nextProposalId;
     uint votingEndTime;
     uint constant VOTING_PERIOD = 1 days;
     mapping(uint => mapping(address => bool)) public hasVoted;
