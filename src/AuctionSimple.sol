@@ -2,48 +2,53 @@
 pragma solidity ^0.8.0;
 
 contract AuctionSimple {
-    address public seller;
-    address public highestBidder;
+    address payable public seller;
+    address payable public highestBidder;
     uint public highestBid;
     uint public endTime;
+    bool public ended;
+
     mapping(address => uint) public cancelledBids;
 
-    constructor(uint256 duration) {
-        endTime = block.timestamp + duration;
-        seller = msg.sender;
-    }
-
     modifier onlySeller() {
-        require(msg.sender == seller, "Only the seller can call this function");
-        _;
-    }
-
-    modifier auctionActive() {
-        require(block.timestamp < endTime, "Auction has ended");
+        require(msg.sender == seller, "Only seller can call this function");
         _;
     }
 
     modifier auctionEnded() {
-        require(block.timestamp >= endTime, "Auction is still ongoing");
+        require(block.timestamp >= endTime, "Auction not yet ended");
+        require(!ended, "Auction already ended");
         _;
-    }    
+    }
 
-    function placeBid() external payable  auctionActive{
-        require(msg.value > highestBid);
-        cancelledBids[msg.sender] = msg.value;
-        highestBidder = msg.sender;
+    constructor(uint _duration) {
+        seller = payable(msg.sender);
+        endTime = block.timestamp + _duration;
+    }
+
+    function placeBid() external payable {
+        require(block.timestamp < endTime, "Auction already ended");
+        require(msg.value > highestBid, "Bid not high enough");
+
+        if (highestBidder != address(0)) {
+            cancelledBids[highestBidder] = highestBid;
+        }
+
+        highestBidder = payable(msg.sender);
         highestBid = msg.value;
     }
 
-    function withdrawBid() external {
-        require(msg.sender != highestBidder);
-        require(block.timestamp < endTime);
-        msg.sender.transfer(cancelledBids[msg.sender]);
-        delete cancelledBids[msg.sender];
+    function cancelBid() public {
+        require(cancelledBids[msg.sender] > 0, "No bid to cancel");
+        uint amount = cancelledBids[msg.sender];
+        cancelledBids[msg.sender] = 0;
+        (bool success, ) = payable(msg.sender).call{value: amount}("");
+        require(success, "Failed to refund bid");
     }
 
-    function finalizeAuction() public auctionEnded onlySeller{
-        require(highestBidder != address(0));
-        highestBidder.transfer(highestBid);
+    function finalizeAuction() public auctionEnded onlySeller {
+        ended = true;
+        (bool success, ) = payable(highestBidder).call{value: highestBid}("");
+        require(success, "Failed to transfer funds to highest bidder");
     }
 }
